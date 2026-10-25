@@ -9,7 +9,7 @@ import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { $nodesOfType } from 'lexical'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type { DraftSnapshot } from '../src/client/contract/draft-editor.ts'
-import type { InputTriggerController } from '../src/client/contract/input.ts'
+import type { DraftAttachmentId, InputTriggerController } from '../src/client/contract/input.ts'
 import { ReferenceChipNode } from '../src/client/input/editor/chip-node.tsx'
 import { TextRefNode } from '../src/client/input/editor/text-ref.ts'
 import { SessionInputShell } from '../src/client/input/facade.ts'
@@ -307,4 +307,26 @@ it('unsubscribes the lexicon and refuses the old binding after Session disposal'
   expect(b.shell.draftSnapshot).toBe(draft)
   expect(b.shell.requestDraftInitialization({ prompt: 'late edit', clearPreviousDraft: true })).toBe('blocked')
   expect(() => b.hub.requestDraftInitialization(b.binding, { prompt: 'late edit' })).toThrow('retained Session binding')
+})
+
+it('keeps unsent screenshot attachments on their Session across scope release and re-entry', async () => {
+  const b = await fixture('unsent screenshot')
+  const image = 'draft-image-1' as DraftAttachmentId
+  const otherImage = 'draft-image-2' as DraftAttachmentId
+  const released = vi.fn()
+  b.ctx.provide('conversation', { releaseDraftAttachment: released } as never)
+  expect(b.shell.addAttachments([image, otherImage])).toBe(true)
+  b.reference.release()
+  await vi.waitFor(() => {
+    expect(b.shell.requestDraftInitialization({ prompt: 'should be blocked' })).toBe('blocked')
+  })
+  expect(released).not.toHaveBeenCalled()
+  const reopened = b.sessions.retain(b.id)
+  onTestFinished(() => { reopened.release() })
+  await reopened.ready
+  const restored = b.hub.shellFor(reopened.binding)
+  expect(restored.snapshot.attachmentIds).toEqual([image, otherImage])
+  expect(restored.draftSnapshot.text).toBe('unsent screenshot')
+  expect(restored.removeAttachment(image)).toBe(true)
+  expect(restored.snapshot.attachmentIds).toEqual([otherImage])
 })

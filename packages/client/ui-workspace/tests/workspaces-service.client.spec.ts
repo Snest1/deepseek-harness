@@ -694,6 +694,23 @@ describe('UiWorkspaceService', () => {
     await vi.waitFor(() => { expect(b.sessions.retain).toHaveBeenCalledWith(sid('blank'), expect.anything()) })
   })
 
+  it('returns to the last edited blank rather than another hidden blank after switching threads', async () => {
+    const b = bench({
+      sessions: sessionState([
+        summary('older', { blank: true, cwd: '/w/a' }),
+        summary('draft', { blank: true, cwd: '/w/a' }),
+        summary('ordinary', { cwd: '/w/a' }),
+      ], 'pending'),
+      workspaces: workspaceState([workspace('a', [sid('older'), sid('draft'), sid('ordinary')])]),
+    })
+    b.uiWorkspace.openSession(sid('draft'))
+    b.uiWorkspace.openSession(sid('ordinary'))
+    b.uiWorkspace.startSession(wid('a'))
+    await vi.waitFor(() => {
+      expect(b.sessions.create).toHaveBeenLastCalledWith({ workspaceId: wid('a'), sessionId: sid('draft') })
+    })
+  })
+
   it('reuses any blank without a requested preset and only a matching blank with one', async () => {
     const b = bench({
       sessions: sessionState([

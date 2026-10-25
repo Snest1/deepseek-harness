@@ -56,6 +56,9 @@ interface ConversationAttachmentFace {
 /** Session-addressed input facade registry (SessionInputResolver face + composer-layer extras). */
 export class InputHub implements SessionInputResolver {
   private readonly shells = new WeakMap<SessionBinding, SessionInputShell>()
+  // Unsent browser attachments survive Session-scope navigation for this app lifetime.
+  // The Conversation service still owns their bytes and preview URLs.
+  private readonly parkedAttachments = new Map<SessionId, readonly DraftAttachmentId[]>()
 
   /**
    * @param ctx - client root context (services resolved lazily per call — boot order stays free).
@@ -167,10 +170,18 @@ export class InputHub implements SessionInputResolver {
       ]
       return () => {
         for (const off of offs) off()
+        // Park only the visible unsent draft. In-flight / detached sends are not
+        // drafts and must continue to be released on scope teardown.
+        const parked = shell.snapshot.attachmentIds
+        const keep = new Set(parked)
+        if (parked.length > 0) this.parkedAttachments.set(binding.sessionId, [...parked])
+        else this.parkedAttachments.delete(binding.sessionId)
         const drafts = shell.dispose()
         this.shells.delete(binding)
         const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
-        for (const attachmentId of drafts) conversation?.releaseDraftAttachment(attachmentId)
+        for (const attachmentId of drafts) {
+          if (!keep.has(attachmentId)) conversation?.releaseDraftAttachment(attachmentId)
+        }
       }
     }, 'conversation.input: session shell')
     actx.inject(['inputTriggers'], (scope) => {
@@ -180,6 +191,14 @@ export class InputHub implements SessionInputResolver {
       }, 'conversation.input: reference catalogs')
     })
     shell.setDraft(readConversationDraft(binding.sessionId))
+    const parked = this.parkedAttachments.get(binding.sessionId)
+    if (parked !== undefined) {
+      this.parkedAttachments.delete(binding.sessionId)
+      if (!shell.addAttachments(parked)) {
+        const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
+        for (const id of parked) conversation?.releaseDraftAttachment(id)
+      }
+    }
     return shell
   }
 

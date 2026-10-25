@@ -174,6 +174,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
+  /** Prefer the last visited blank over other hidden unsent drafts in this Workspace. */
+  private readonly lastBlankByWorkspace = new Map<WorkspaceId, SessionId>()
   private restorationNavigation: AbortSignal | undefined
 
   /**
@@ -235,13 +237,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private createInWorkspace(workspace: WorkspaceView, options: Pick<StartSessionOptions, 'agentPreset'>): Promise<SessionId> {
     const archived = this.workspaces.list.getSnapshot().archivedSessionIds
     const sessions = this.sessions.list.getSnapshot()
-    const blank = sessions.ids.find((id) => {
+    const candidates = sessions.ids.filter((id) => {
       const summary = sessions.byId[id]
       const listed = summary?.projectionValues?.agentPreset
       return summary !== undefined && summary.blank && summary.cwd === workspace.path
         && workspace.sessionIds.includes(id) && !archived.includes(id)
         && (options.agentPreset === undefined || typeof listed !== 'string' || listed === options.agentPreset)
     })
+    const last = this.lastBlankByWorkspace.get(workspace.workspaceId)
+    const blank = candidates.find(id => id === last) ?? candidates[0]
     return this.createNamed({
       workspaceId: workspace.workspaceId,
       ...(blank === undefined ? {} : { sessionId: blank }),
@@ -319,6 +323,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
     if (navigation.aborted) return
     this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
+    this.lastBlankByWorkspace.set(workspaceId, sessionId)
   }
 
   async forkSession(
@@ -542,6 +547,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         sessionId: reference.sessionId,
         ...(subagentAddress === undefined ? {} : { subagentAddress }),
       })
+      const summary = this.sessions.list.getSnapshot().byId[reference.sessionId]
+      if (summary?.blank && subagentAddress === undefined) {
+        const workspace = this.workspaces.list.getSnapshot().items
+          .find(item => item.sessionIds.includes(reference.sessionId))
+        if (workspace !== undefined) this.lastBlankByWorkspace.set(workspace.workspaceId, reference.sessionId)
+      }
     } catch (error: unknown) {
       reference.release()
       throw error
