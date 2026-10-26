@@ -8,7 +8,7 @@ import { parseGfm, parseGfmWithMath } from '../src/markdown/parse.ts'
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 const fileDrag = { prepare: vi.fn(async () => ({ start: () => true, release: () => {} })), reportFailure: vi.fn() }
-const labels = { dragFailed: 'Image drag failed', open: 'View full image', dialog: 'Image preview', close: 'Close preview', loading: 'Loading image', failed: 'Image unavailable' }
+const labels = { dragFailed: 'Image drag failed', open: 'View full image', dialog: 'Image preview', close: 'Close preview', copy: 'Copy image', copied: 'Image copied', copyFailed: 'Could not copy image', loading: 'Loading image', failed: 'Image unavailable' }
 const fileImages = { fileDrag, resolve: (path: string) => `https://example.com/api/file?path=${encodeURIComponent('/workspace/' + path)}`, labels }
 function mount(text: string, streaming = false) {
   const openFile = vi.fn()
@@ -58,7 +58,7 @@ it('opens inline images in the shared lightbox, restores focus, and never opens 
   fireEvent.click(trigger)
   expect(screen.getByRole('dialog', { name: 'Image preview' })).toBeTruthy()
   fireEvent.keyDown(window, { key: 'Tab' })
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close preview' }))
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Copy image' }))
   fireEvent.click(screen.getByRole('button', { name: 'Close preview' }))
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(document.activeElement).toBe(trigger)

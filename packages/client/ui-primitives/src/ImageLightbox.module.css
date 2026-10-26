@@ -34,6 +34,7 @@
   box-shadow: var(--dsw-elevation-prominent);
 }
 
+.copy,
 .close {
   position: absolute;
   top: 20px;
@@ -51,4 +52,46 @@
   cursor: pointer;
 }
 
+.copy { right: 64px; }
+
+.copyResult {
+  position: absolute;
+  top: 26px;
+  right: 112px;
+  z-index: 1;
+  padding: 5px 10px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 2;
+  min-width: 172px;
+  padding: 4px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-specific-input-major);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.contextMenu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.contextMenu button:hover,
+.contextMenu button:focus-visible { background: var(--dsw-alias-interactive-bg-hover); }
+
+.copy:focus-visible,
 .close:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 3px; }

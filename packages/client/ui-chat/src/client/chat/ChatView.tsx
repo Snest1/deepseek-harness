@@ -91,6 +91,7 @@ export function ChatView({
     labels: {
       open: t('image.open'), loading: t('image.loading'), failed: t('image.failed'),
       dialog: t('image.dialog'), close: t('image.close'),
+      copy: t('image.copy'), copied: t('image.copied'), copyFailed: t('image.copyFailed'),
     },
   }), [cwd, t, fileDrag, sessionId])
   const running = useSession(s => s.running)
